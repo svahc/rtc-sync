@@ -3,45 +3,80 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ESP32-C3 Time Sync 2026</title>
+    <title>RTC Sync 2026</title>
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #f0f0f0; }
-        button { padding: 15px 30px; font-size: 1.2rem; cursor: pointer; border-radius: 10px; border: none; background: #007bff; color: white; transition: 0.3s; }
-        button:hover { background: #0056b3; }
-        #status { margin-top: 20px; color: #555; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            height: 100vh; margin: 0; background: #121212; color: white;
+        }
+        .card {
+            background: #1e1e1e; padding: 30px; border-radius: 20px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; width: 320px;
+        }
+        #clock { font-size: 3rem; font-weight: bold; margin: 20px 0; color: #007bff; }
+        button { 
+            padding: 15px 25px; font-size: 1.1rem; cursor: pointer; border-radius: 12px; 
+            border: none; background: #007bff; color: white; transition: 0.2s; width: 100%;
+        }
+        button:hover { background: #0056b3; transform: scale(1.02); }
+        button:active { transform: scale(0.98); }
+        #status { margin-top: 20px; font-size: 0.9rem; color: #aaa; min-height: 1.2em; }
+        .date { font-size: 1.1rem; color: #888; }
     </style>
 </head>
 <body>
-    <h1>Синхронизация времени</h1>
-    <button id="connect">Синхронизировать время</button>
-    <p id="status">Подключите ESP32 к телефону по USB и нажмите кнопку</p>
+
+    <div class="card">
+        <div class="date" id="date">--.--.----</div>
+        <div id="clock">00:00:00</div>
+        <button id="connect">Синхронизировать время</button>
+        <p id="status">Подключите часы по USB</p>
+    </div>
 
     <script>
+        // Обновление часов на экране
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').innerText = now.toLocaleTimeString();
+            document.getElementById('date').innerText = now.toLocaleDateString('ru-RU', { 
+                day: 'numeric', month: 'long', year: 'numeric' 
+            });
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Логика Web Serial
         document.getElementById('connect').addEventListener('click', async () => {
             const status = document.getElementById('status');
             try {
-                // 1. Запрос порта у пользователя
+                // Запрос порта
                 const port = await navigator.serial.requestPort();
                 await port.open({ baudRate: 115200 });
 
-                status.innerText = "Подключено. Отправка данных...";
+                status.style.color = "#00ff00";
+                status.innerText = "Подключено. Отправка...";
 
-                // 2. Подготовка данных (формат T + Unix Timestamp)
-                const now = Math.floor(Date.now() / 1000);
-                const msg = "T" + now + "\n";
+                // Формируем пакет T + Unix Timestamp
+                const unixTime = Math.floor(Date.now() / 1000);
+                const msg = "T" + unixTime + "\n";
                 
-                // 3. Отправка в Serial
                 const encoder = new TextEncoder();
                 const writer = port.writable.getWriter();
                 await writer.write(encoder.encode(msg));
                 
-                status.innerText = "Успешно! Время " + new Date().toLocaleTimeString() + " отправлено.";
+                status.innerText = "Готово! Время синхронизировано.";
                 
-                // 4. Закрытие порта
-                writer.releaseLock();
-                await port.close();
+                // Закрываем порт через небольшую паузу
+                setTimeout(async () => {
+                    writer.releaseLock();
+                    await port.close();
+                }, 500);
+
             } catch (err) {
+                status.style.color = "#ff4444";
                 status.innerText = "Ошибка: " + err.message;
+                console.error(err);
             }
         });
     </script>
