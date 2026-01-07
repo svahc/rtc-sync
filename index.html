@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32-C3 Time Sync 2026</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #f0f0f0; }
+        button { padding: 15px 30px; font-size: 1.2rem; cursor: pointer; border-radius: 10px; border: none; background: #007bff; color: white; transition: 0.3s; }
+        button:hover { background: #0056b3; }
+        #status { margin-top: 20px; color: #555; }
+    </style>
+</head>
+<body>
+    <h1>Синхронизация времени</h1>
+    <button id="connect">Синхронизировать время</button>
+    <p id="status">Подключите ESP32 к телефону по USB и нажмите кнопку</p>
+
+    <script>
+        document.getElementById('connect').addEventListener('click', async () => {
+            const status = document.getElementById('status');
+            try {
+                // 1. Запрос порта у пользователя
+                const port = await navigator.serial.requestPort();
+                await port.open({ baudRate: 115200 });
+
+                status.innerText = "Подключено. Отправка данных...";
+
+                // 2. Подготовка данных (формат T + Unix Timestamp)
+                const now = Math.floor(Date.now() / 1000);
+                const msg = "T" + now + "\n";
+                
+                // 3. Отправка в Serial
+                const encoder = new TextEncoder();
+                const writer = port.writable.getWriter();
+                await writer.write(encoder.encode(msg));
+                
+                status.innerText = "Успешно! Время " + new Date().toLocaleTimeString() + " отправлено.";
+                
+                // 4. Закрытие порта
+                writer.releaseLock();
+                await port.close();
+            } catch (err) {
+                status.innerText = "Ошибка: " + err.message;
+            }
+        });
+    </script>
+</body>
+</html>
